@@ -74,6 +74,7 @@ router.put("/:id/runs", auth, async (req: AuthRequest, res: Response, next: Next
 // POST create user
 router.post("/", async (req: Request<{}, {}, User>, res: Response) => {
   console.log("POST")
+  console.log(req.body)
   const user = userRepo.create(req.body)
   const saved = await userRepo.save(user)
 
