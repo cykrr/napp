@@ -2,6 +2,9 @@ import "reflect-metadata"
 import { DataSource } from "typeorm"
 import { User } from "./entity/User"
 import * as dotenv from "dotenv"
+import { Token } from "./entity/Token";
+import { Run } from "./entity/Run";
+import { Event } from "./entity/Event";
 
 dotenv.config()
 
@@ -14,5 +17,5 @@ export const AppDataSource = new DataSource({
   database: process.env.POSTGRES_DB || "mydb",
   synchronize: true,
   logging: false,
-  entities: [User],
+  entities: [User, Token, Run, Event],
 })
