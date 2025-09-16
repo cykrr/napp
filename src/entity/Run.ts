@@ -1,26 +1,67 @@
-import { Entity,PrimaryGeneratedColumn,ManyToOne,OneToMany,Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne } from "typeorm"
+import { Event } from "./Event"
 import { User } from "./User";
-import { Event } from "./Event";
+
 @Entity()
 export class Run {
-    @PrimaryGeneratedColumn()
-    id!: number
+  @PrimaryGeneratedColumn()
+  id!: number
 
-    @Column()
-    levelId!: number
 
-    @Column()
-    score!: number
+  @Column()
+  levelId!: string
 
-    @Column()
-    completed!: boolean
+  @Column()
+  distance!: number
 
-    @Column("float")
-    time!: number
+  @Column()
+  jumps!: number
 
-    @ManyToOne(() => User, user => user.runs)
-    user!: User
+  @Column()
+  errors!: number
 
-    @OneToMany(() => Event, event => event.run)
-    events!: Event[]
+  @Column()
+  correct!: number
+
+  @Column()
+  completed!: number
+
+  @ManyToOne(() => User, u => u.runs)
+  user!: User
+
+  @OneToMany(() => Question, q => q.run, { cascade: true })
+  questions!: Question[]
+
 }
+@Entity()
+export class Question {
+  @PrimaryGeneratedColumn()
+  id!: number
+
+  @ManyToOne(() => Run, run => run.questions)
+  run!: Run
+
+  @Column()
+  excelQuestionId!: number
+
+  @Column("float")
+  answerTime!: number
+
+  @OneToMany(() => Event, a => a.question, { cascade: true })
+  events!: Event[]
+}
+
+// @Entity()
+// export class Assertion {
+//   @PrimaryGeneratedColumn()
+//   id!: number
+
+//   @ManyToOne(() => Question, q => q.assertions)
+//   question!: Question
+
+//   @Column()
+//   formId!: number
+
+//   @Column()
+//   correct!: boolean
+// }

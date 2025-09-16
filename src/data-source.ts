@@ -3,7 +3,9 @@ import { DataSource } from "typeorm"
 import { User } from "./entity/User"
 import * as dotenv from "dotenv"
 import { Token } from "./entity/Token";
-import { Run } from "./entity/Run";
+import { Run,Question
+  // ,Assertion 
+} from "./entity/Run";
 import { Event } from "./entity/Event";
 
 dotenv.config()
@@ -17,5 +19,9 @@ export const AppDataSource = new DataSource({
   database: process.env.POSTGRES_DB || "mydb",
   synchronize: true,
   logging: false,
-  entities: [User, Token, Run, Event],
+    extra: {
+    max: 50,   // maximum number of connections in pool
+    idleTimeoutMillis: 30000, // close idle clients after 30s
+  },
+  entities: [User, Token, Run, Question, Event  /* Assertion */ ],
 })

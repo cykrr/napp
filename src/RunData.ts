@@ -1,7 +1,7 @@
 // Uno por run
 export type RunData = {
   u: number           // userId: Usuario asociado al run
-  l: number           // levelId: ID del Nivel \in {1, 2, 3, 4}.
+  l: string           // levelId: ID del Nivel \in {1, 2, 3, 4}.
   s: number           // score: Puntaje del usuario
   c: boolean          // completed: Run exitoso?
   t: number           // time: Duración del run

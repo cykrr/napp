@@ -6,7 +6,7 @@ import { randomUUID } from "crypto"
 import { auth } from "../middleware/auth"
 import { Auth } from "typeorm";
 import { RunData } from "../RunData";
-import { Run } from "../entity/Run";
+import { Question, Run } from "../entity/Run";
 import { ForeignKeyMetadata } from "typeorm/metadata/ForeignKeyMetadata.js";
 import {Event} from "../entity/Event"
 
@@ -23,57 +23,72 @@ export interface AuthRequest extends Request {
   user?: User
 }
 
-router.put("/:id/runs", auth, async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const id = parseInt(req.params.id)
-  console.log(id, req.user)
-  if (id !== req.user?.id) {
-    return res.status(403).json({error: "Not Allowed"})
-  }
-  try {
-    const data = req.body as RunData
-    const userRepo = AppDataSource.getRepository(User);
-    const runRepo = AppDataSource.getRepository(Run);
-    const eventRepo = AppDataSource.getRepository(Event);
 
-    const user = await userRepo.findOneBy({ id })
-    if (!user) return res.status(404).json({error: "User not found"})
+router.put("/:id/runs", auth, async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id)
+  if (id !== req.user?.id) return res.status(403).json({ error: "Not Allowed" })
+
+  try {
+    const { l, d, j, e, c, a, cc } = req.body as {
+      l: string
+      d: number
+      j: number
+      e: number
+      c: number
+      cc: number
+      a: [number, number, number, number, number][]
+    }
+
+    const user = await AppDataSource.getRepository(User).findOneBy({ id })
+    if (!user) return res.status(404).json({ error: "User not found" })
+
+    const runRepo = AppDataSource.getRepository(Run)
+    const questionRepo = AppDataSource.getRepository(Question)
+    const eventRepo = AppDataSource.getRepository(Event)
 
     const run = runRepo.create({
-      user,
-      levelId: data.l,
-      score: data.s,
-      completed: data.c,
-      time: data.t,
-      events: [],
+      user, levelId: l, distance: d, jumps: j, errors: e, correct: c, completed: cc
     })
+    await runRepo.save(run)
 
-    await runRepo.save(run);
-    const events = data.a.map(([questionId, assertionId, formId, answerTime, isCorrect ]) => 
-      eventRepo.create({
-        run, 
-        questionId,
-        assertionId,
-        formId,
-        answerTime,
-        isCorrect: !!isCorrect,
+    if (a?.length) {
+      const events = []
+      for (let i = 0; i < a.length; i++) {
+        const [qId, asId, fId, ansTime, ok] = a[i]
 
-      })
-    );
-    console.log(events)
-    await eventRepo.save(events);
+        // create Question only once per 4 rows (same qId)
+        if (i % 4 === 0) {
+          const question = questionRepo.create({
+            run,
+            excelQuestionId: qId,
+            answerTime: ansTime,
+          })
+          await questionRepo.save(question)
+        }
 
+        events.push(eventRepo.create({
+          assertionId: asId,
+          formId: fId,
+          isCorrect: !!ok,
+        }))
+      }
+      await eventRepo.save(events)
+    }
 
+    return res.json({ status: "ok" })
   } catch (err) {
-      console.log(err)
+    console.error(err)
+    return res.status(500).json({ error: "Server error" })
   }
-  return res.status(200).json({status: "ok"})
 })
+
+
 
 
 
 // POST create user
 router.post("/", async (req: Request<{}, {}, User>, res: Response) => {
-  console.log("POST")
+  console.log("PUT")
   console.log(req.body)
   const user = userRepo.create(req.body)
   const saved = await userRepo.save(user)
