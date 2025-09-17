@@ -15,71 +15,75 @@ const userRepo = AppDataSource.getRepository(User)
 
 // GET all users
 router.get("/", async (req, res) => {
-  const users = await userRepo.find()
-  res.json(users)
+	const users = await userRepo.find()
+	res.json(users)
 })
 
 export interface AuthRequest extends Request {
-  user?: User
+	user?: User
 }
 
 
-router.put("/:id/runs", auth, async (req: AuthRequest, res: Response) => {
-  const id = parseInt(req.params.id)
-  if (id !== req.user?.id) return res.status(403).json({ error: "Not Allowed" })
+router.put("/:id/run", auth, async (req: AuthRequest, res: Response) => {
+	const id = parseInt(req.params.id)
+	console.log(`PUT /api/users/${id}/run`)
+	if (id !== req.user?.id) return res.status(403).json({ error: "Not Allowed" })
 
-  try {
-    const { l, d, j, e, c, a, cc } = req.body as {
-      l: string
-      d: number
-      j: number
-      e: number
-      c: number
-      cc: number
-      a: [number, number, number, number, number][]
-    }
+	try {
+		const { l, d, j, e, c, a, cc } = req.body as {
+			l: string
+			d: number
+			j: number
+			e: number
+			c: number
+			cc: number
+			a: [number, number, number, number, number][]
+		}
 
-    const user = await AppDataSource.getRepository(User).findOneBy({ id })
-    if (!user) return res.status(404).json({ error: "User not found" })
+		const user = await AppDataSource.getRepository(User).findOneBy({ id })
+		if (!user) return res.status(404).json({ error: "User not found" })
 
-    const runRepo = AppDataSource.getRepository(Run)
-    const questionRepo = AppDataSource.getRepository(Question)
-    const eventRepo = AppDataSource.getRepository(Event)
+		const runRepo = AppDataSource.getRepository(Run)
+		const questionRepo = AppDataSource.getRepository(Question)
+		const eventRepo = AppDataSource.getRepository(Event)
 
-    const run = runRepo.create({
-      user, levelId: l, distance: d, jumps: j, errors: e, correct: c, completed: cc
-    })
-    await runRepo.save(run)
+		const run = runRepo.create({
+			user, levelId: l, distance: d, jumps: j, errors: e, correct: c, completed: cc
+		})
+		await runRepo.save(run)
 
-    if (a?.length) {
-      const events = []
-      for (let i = 0; i < a.length; i++) {
-        const [qId, asId, fId, ansTime, ok] = a[i]
+		if (a?.length) {
+			const events = []
+			let question = null;
+			for (let i = 0; i < a.length; i++) {
+				const [qId, asId, fId, ansTime, ok] = a[i];
 
-        // create Question only once per 4 rows (same qId)
-        if (i % 4 === 0) {
-          const question = questionRepo.create({
-            run,
-            excelQuestionId: qId,
-            answerTime: ansTime,
-          })
-          await questionRepo.save(question)
-        }
+				// create at i==0 and then every 4th row
+				if (i % 4 === 0) {
+					question = questionRepo.create({
+						run,
+						excelQuestionId: qId,
+						answerTime: ansTime,
+					});
+					await questionRepo.save(question);
+				}
 
-        events.push(eventRepo.create({
-          assertionId: asId,
-          formId: fId,
-          isCorrect: !!ok,
-        }))
-      }
-      await eventRepo.save(events)
-    }
+				if (!question) continue; // safeguard
 
-    return res.json({ status: "ok" })
-  } catch (err) {
-    console.error(err)
-    return res.status(500).json({ error: "Server error" })
-  }
+				events.push(eventRepo.create({
+					assertionId: asId,  // ensure Event entity has this column
+					formId: fId,
+					isCorrect: !!ok,
+					question,
+				}));
+			}
+		}
+
+		return res.json({ status: "ok" })
+	} catch (err) {
+		console.error(err)
+		return res.status(500).json({ error: "Server error" })
+	}
 })
 
 
@@ -88,16 +92,16 @@ router.put("/:id/runs", auth, async (req: AuthRequest, res: Response) => {
 
 // POST create user
 router.post("/", async (req: Request<{}, {}, User>, res: Response) => {
-  console.log("PUT")
-  console.log(req.body)
-  const user = userRepo.create(req.body)
-  const saved = await userRepo.save(user)
+	console.log("POST create user")
+	console.log(req.body)
+	const user = userRepo.create(req.body)
+	const saved = await userRepo.save(user)
 
-  const tokenRepo = AppDataSource.getRepository(Token)
-  const token = tokenRepo.create({ value: randomUUID(), user: saved })
-  await tokenRepo.save(token)
+	const tokenRepo = AppDataSource.getRepository(Token)
+	const token = tokenRepo.create({ value: randomUUID(), user: saved })
+	await tokenRepo.save(token)
 
-  res.status(201).json({ user: saved, token: token.value })
+	res.status(201).json({ user: saved, token: token.value })
 })
 
 export default router
